@@ -15,6 +15,9 @@ var (
 	ErrOffsetOutOfRange = errors.New("seglog: offset out of range")
 	// ErrTooManyReaders 并发读句柄达到配置上限。
 	ErrTooManyReaders = errors.New("seglog: too many open readers")
+	// ErrNoCapacity 容量（总字节数或段数）达到配置上限且回收不出空间，写入被拒绝。
+	// 与 ErrBackpressure（在途未刷盘字节背压）可区分。
+	ErrNoCapacity = errors.New("seglog: insufficient capacity")
 )
 
 // CorruptKind 区分恢复时发现的损坏类别。
@@ -30,6 +33,9 @@ const (
 	CorruptBadLength
 	// CorruptChecksum CRC 校验失败。
 	CorruptChecksum
+	// CorruptPartialRecord 跨段记录只写入了一部分块（写入中途崩溃留下的残余），
+	// 已写的块本身完整可解码，但记录未完结，可安全截断。
+	CorruptPartialRecord
 )
 
 func (k CorruptKind) String() string {
@@ -44,6 +50,8 @@ func (k CorruptKind) String() string {
 		return "bad-length"
 	case CorruptChecksum:
 		return "checksum-mismatch"
+	case CorruptPartialRecord:
+		return "partial-record"
 	}
 	return "unknown"
 }
